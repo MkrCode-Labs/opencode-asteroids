@@ -252,7 +252,18 @@ const SKINS = [
     flame: 'rgba(190,120,255,0.9)',
     verts: [[24, 0], [2, -7], [-15, -7], [-8, 0], [-15, 7], [2, 7]],
   },
+  {
+    name: 'TITAN',
+    color: '#fc3',
+    flame: 'rgba(255,200,60,0.9)',
+    verts: [[20, 0], [-12, -9], [-7, 0], [-12, 9]],
+    scale: 2,      // el doble de grande que la nave original
+    scoreMult: 2,  // puntos x2 al pilotarla
+  },
 ];
+
+const skinScale     = () => SKINS[currentSkin].scale     || 1;
+const skinScoreMult = () => SKINS[currentSkin].scoreMult || 1;
 
 const SKIN_KEY      = 'asteroids.skin';
 const SKIN_TOAST_TTL = 1.5;
@@ -287,7 +298,7 @@ class Ship {
     this.angle  = -Math.PI / 2;
     this.vx     = 0;
     this.vy     = 0;
-    this.radius = 12;
+    this.radius = 12 * skinScale();
     this.thrusting     = false;
     this.invincible    = 3;
     this.shootCooldown = 0;
@@ -300,6 +311,7 @@ class Ship {
 
   update(dt) {
     if (this.dead) return;
+    this.radius = 12 * skinScale();   // por si se cambia de skin en vuelo
     if (this.invincible    > 0) this.invincible    -= dt;
     if (this.shootCooldown > 0) this.shootCooldown -= dt;
 
@@ -341,7 +353,7 @@ class Ship {
   tryShoot() {
     if (this.shootCooldown > 0 || this.dead) return [];
     this.shootCooldown = 0.2;
-    const NOSE = 21;
+    const NOSE = 21 * skinScale();
     const ox = this.x + Math.cos(this.angle) * NOSE;
     const oy = this.y + Math.sin(this.angle) * NOSE;
 
@@ -365,7 +377,7 @@ class Ship {
     ctx.lineWidth   = 1.5;
     ctx.setLineDash([10, 6]);   // aro discontinuado giratorio
     ctx.beginPath();
-    ctx.arc(0, 0, SHIELD_RADIUS, 0, Math.PI * 2);
+    ctx.arc(0, 0, SHIELD_RADIUS * skinScale(), 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -378,6 +390,7 @@ class Ship {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
+    ctx.scale(skinScale(), skinScale());   // TITAN se dibuja al doble
     ctx.strokeStyle = SKINS[currentSkin].color;
     ctx.lineWidth   = 1.5;
     ctx.lineJoin    = 'round';
@@ -623,7 +636,7 @@ function update(dt) {
       if (!a.dead && !b.dead && dist(b, a) < a.radius) {
         b.dead = true;
         a.dead = true;
-        score += POINTS[a.size];
+        score += POINTS[a.size] * skinScoreMult();
         explode(a.x, a.y, a.size * 5);
         newAsteroids.push(...a.split());
         if (Math.random() < POWERUP_CHANCE) {
@@ -639,7 +652,7 @@ function update(dt) {
       if (!s.dead && !b.dead && dist(b, s) < s.radius) {
         b.dead = true;
         s.dead = true;
-        score += STAR_POINTS;
+        score += STAR_POINTS * skinScoreMult();
         explode(s.x, s.y, 10);
       }
     }
@@ -650,7 +663,7 @@ function update(dt) {
   stars     = stars.filter(s => !s.dead);
 
   // Nave vs asteroide y estrella fugaz (el escudo absorbe los impactos)
-  const hitRadius  = ship.shieldTimer > 0 ? SHIELD_RADIUS : ship.radius;
+  const hitRadius  = ship.shieldTimer > 0 ? SHIELD_RADIUS * skinScale() : ship.radius;
   const shielded   = ship.shieldTimer > 0;
 
   if (ship.invincible <= 0) {
@@ -659,7 +672,7 @@ function update(dt) {
         if (shielded) {
           // El escudo destruye la amenaza: no se parte ni suelta power-ups
           a.dead = true;
-          score += POINTS[a.size];
+          score += POINTS[a.size] * skinScoreMult();
           explode(a.x, a.y, a.size * 5);
         } else {
           killShip();
@@ -672,7 +685,7 @@ function update(dt) {
         if (dist(ship, s) < hitRadius + s.radius * 0.82) {
           if (shielded) {
             s.dead = true;
-            score += STAR_POINTS;
+            score += STAR_POINTS * skinScoreMult();
             explode(s.x, s.y, 10);
           } else {
             killShip();

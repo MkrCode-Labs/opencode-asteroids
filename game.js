@@ -7,6 +7,8 @@ const H = 600;
 
 const POWERUP_CHANCE   = 0.1;
 const SPEED_DURATION   = 5;
+const SHIELD_DURATION  = 6;
+const SHIELD_RADIUS    = 22;
 const POWERUP_TTL      = 15;
 
 const STAR_INTERVAL_MIN = 10;
@@ -230,6 +232,8 @@ class Ship {
     this.invincible    = 3;
     this.shootCooldown = 0;
     this.speedTimer    = 0;
+    this.shieldTimer   = 0;
+    this.shieldRot     = 0;
     this.dead          = false;
   }
 
@@ -241,6 +245,10 @@ class Ship {
     const ROT   = 3.5;   // rad/s
     const boosted = this.speedTimer > 0;
     if (boosted) this.speedTimer -= dt;
+    if (this.shieldTimer > 0) {
+      this.shieldTimer -= dt;
+      this.shieldRot += 2.2 * dt;   // giro lento del aro de escudo
+    }
 
     const THRUST = boosted ? 520 : 260;  // px/s² (x2 con power-up)
     const DRAG   = boosted ? 0.995 : 0.987;
@@ -277,6 +285,23 @@ class Ship {
     return [new Bullet(ox, oy, this.angle)];
   }
 
+  drawShield() {
+    if (this.shieldTimer <= 0) return;
+    // Parpadeo justo antes de agotarse
+    if (this.shieldTimer < 1 && Math.floor(this.shieldTimer * 8) % 2 === 0) return;
+
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.shieldRot);
+    ctx.strokeStyle = 'rgba(255,110,180,0.85)';
+    ctx.lineWidth   = 1.5;
+    ctx.setLineDash([10, 6]);   // aro discontinuado giratorio
+    ctx.beginPath();
+    ctx.arc(0, 0, SHIELD_RADIUS, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   draw() {
     if (this.dead) return;
     // Parpadeo durante invencibilidad de reaparición
@@ -309,6 +334,8 @@ class Ship {
     }
 
     ctx.restore();
+
+    this.drawShield();
   }
 }
 
@@ -349,6 +376,7 @@ class PowerUp {
   constructor(x, y) {
     this.x      = x;
     this.y      = y;
+    this.type   = Math.random() < 0.5 ? 'speed' : 'shield';
     this.radius = 12;
     this.ttl    = POWERUP_TTL;
     this.age    = 0;
@@ -366,13 +394,27 @@ class PowerUp {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.scale(pulse, pulse);
-    ctx.strokeStyle = '#4ff';
     ctx.lineWidth   = 2;
     ctx.lineJoin    = 'round';
-    ctx.beginPath();
-    ctx.moveTo(-9, -8); ctx.lineTo(0, 0);  ctx.lineTo(-9, 8);
-    ctx.moveTo( 1, -8); ctx.lineTo(10, 0); ctx.lineTo( 1, 8);
-    ctx.stroke();
+
+    if (this.type === 'speed') {
+      // Doble flecha cian: empuje x2
+      ctx.strokeStyle = '#4ff';
+      ctx.beginPath();
+      ctx.moveTo(-9, -8); ctx.lineTo(0, 0);  ctx.lineTo(-9, 8);
+      ctx.moveTo( 1, -8); ctx.lineTo(10, 0); ctx.lineTo( 1, 8);
+      ctx.stroke();
+    } else {
+      // Contorno de escudo rosa: aro protector
+      ctx.strokeStyle = '#f6a';
+      ctx.beginPath();
+      ctx.moveTo(-7, -9); ctx.lineTo(7, -9);
+      ctx.lineTo(7, 1);   ctx.lineTo(0, 9);
+      ctx.lineTo(-7, 1);
+      ctx.closePath();
+      ctx.stroke();
+    }
+
     ctx.restore();
   }
 }
@@ -428,7 +470,8 @@ function explode(x, y, count = 8) {
 function killShip() {
   explode(ship.x, ship.y, 14);
   ship.dead = true;
-  ship.speedTimer = 0;
+  ship.speedTimer  = 0;
+  ship.shieldTimer = 0;
   lives--;
   if (lives <= 0) {
     state = 'gameover';
@@ -519,29 +562,49 @@ function update(dt) {
   bullets   = bullets.filter(b => !b.dead);
   stars     = stars.filter(s => !s.dead);
 
-  // Nave vs asteroide
+  // Nave vs asteroide y estrella fugaz (el escudo absorbe los impactos)
+  const hitRadius  = ship.shieldTimer > 0 ? SHIELD_RADIUS : ship.radius;
+  const shielded   = ship.shieldTimer > 0;
+
   if (ship.invincible <= 0) {
     for (const a of asteroids) {
-      if (dist(ship, a) < ship.radius + a.radius * 0.82) {
-        killShip();
-        break;
-      }
-    }
-    if (!ship.dead) {
-      for (const s of stars) {
-        if (dist(ship, s) < ship.radius + s.radius * 0.82) {
+      if (dist(ship, a) < hitRadius + a.radius * 0.82) {
+        if (shielded) {
+          // El escudo destruye la amenaza: no se parte ni suelta power-ups
+          a.dead = true;
+          score += POINTS[a.size];
+          explode(a.x, a.y, a.size * 5);
+        } else {
           killShip();
           break;
         }
       }
     }
+    if (!ship.dead) {
+      for (const s of stars) {
+        if (dist(ship, s) < hitRadius + s.radius * 0.82) {
+          if (shielded) {
+            s.dead = true;
+            score += STAR_POINTS;
+            explode(s.x, s.y, 10);
+          } else {
+            killShip();
+            break;
+          }
+        }
+      }
+    }
   }
+
+  asteroids = asteroids.filter(a => !a.dead);
+  stars     = stars.filter(s => !s.dead);
 
   // Nave vs power-up
   for (const p of powerups) {
     if (!p.dead && dist(ship, p) < ship.radius + p.radius) {
       p.dead = true;
-      ship.speedTimer = SPEED_DURATION;
+      if (p.type === 'shield') ship.shieldTimer = SHIELD_DURATION;
+      else                     ship.speedTimer = SPEED_DURATION;
     }
   }
   powerups = powerups.filter(p => !p.dead);
@@ -568,6 +631,22 @@ function drawLifeIcon(x, y) {
   ctx.restore();
 }
 
+function drawStatusBar(text, timer, duration, color, bgDim, y) {
+  const BAR_W = 120;
+  const BAR_H = 6;
+  const BAR_X = 14;
+
+  const blink = timer < 1 && Math.floor(timer * 8) % 2 === 0;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = blink ? bgDim : color;
+  ctx.fillText(`${text}  ${timer.toFixed(1)}s`, BAR_X, y - 6);
+
+  ctx.fillStyle = bgDim;
+  ctx.fillRect(BAR_X, y, BAR_W, BAR_H);
+  ctx.fillStyle = color;
+  ctx.fillRect(BAR_X, y, BAR_W * (timer / duration), BAR_H);
+}
+
 function drawHUD() {
   ctx.fillStyle = '#fff';
   ctx.font = '15px monospace';
@@ -581,21 +660,19 @@ function drawHUD() {
   for (let i = 0; i < lives; i++)
     drawLifeIcon(W - 16 - i * 22, 18);
 
+  // Barras apiladas: escudo arriba, velocidad abajo
+  let barY = H - 10;
+  if (ship.speedTimer > 0) barY -= 16;
+  if (ship.shieldTimer > 0) {
+    ctx.font = '15px monospace';
+    drawStatusBar('ESCUDO', ship.shieldTimer, SHIELD_DURATION,
+                  '#f6a', 'rgba(255,110,180,0.35)', barY);
+    barY += 16;
+  }
   if (ship.speedTimer > 0) {
-    const blink = ship.speedTimer < 1 && Math.floor(ship.speedTimer * 8) % 2 === 0;
-    const BAR_W = 120;
-    const BAR_H = 6;
-    const BAR_X = 14;
-    const BAR_Y = H - 10;
-
-    ctx.textAlign = 'left';
-    ctx.fillStyle = blink ? 'rgba(120,255,255,0.35)' : '#4ff';
-    ctx.fillText(`VEL x2  ${ship.speedTimer.toFixed(1)}s`, BAR_X, H - 16);
-
-    ctx.fillStyle = 'rgba(120,255,255,0.15)';
-    ctx.fillRect(BAR_X, BAR_Y, BAR_W, BAR_H);
-    ctx.fillStyle = '#4ff';
-    ctx.fillRect(BAR_X, BAR_Y, BAR_W * (ship.speedTimer / SPEED_DURATION), BAR_H);
+    ctx.font = '15px monospace';
+    drawStatusBar('VEL x2', ship.speedTimer, SPEED_DURATION,
+                  '#4ff', 'rgba(120,255,255,0.35)', barY);
   }
 
 }

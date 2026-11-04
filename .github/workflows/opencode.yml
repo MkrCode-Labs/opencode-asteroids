@@ -24,6 +24,10 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      # PARCHE 1: Forzar la creación de las carpetas que OpenCode intenta usar
+      - name: Fix OpenCode Directories
+        run: mkdir -p /home/runner/.local/share/opencode/snapshot /home/runner/.local/share/opencode/info
+
       - name: Sign in to OpenCode
         env:
           AUDIENCE: https://opencode.ai/console
@@ -40,5 +44,8 @@ jobs:
 
       - name: Run OpenCode
         uses: anomalyco/opencode/github@latest
+        env:
+          # PARCHE 2: Pasar explícitamente el token nativo para que el bot pueda comentar
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           model: opencode/glm-5.2

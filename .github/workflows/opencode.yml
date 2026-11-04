@@ -39,4 +39,4 @@ jobs:
       - name: Run OpenCode
         uses: anomalyco/opencode/github@latest
         with:
-          model: GLM-5.3-Flash free
+          model: opencode/glm-5.3-flash

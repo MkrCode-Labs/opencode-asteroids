@@ -5,7 +5,7 @@ const ctx = canvas.getContext('2d');
 const W = 800;
 const H = 600;
 
-const POWERUP_CHANCE   = 0.1;
+const POWERUP_CHANCE   = 0.25;
 const SPEED_DURATION   = 5;
 const SHIELD_DURATION  = 6;
 const SHIELD_RADIUS    = 22;
@@ -441,7 +441,7 @@ class Particle {
 
 // ── Power-up (velocidad / triple disparo) ─────────────────────────────────────
 class PowerUp {
-  constructor(x, y, type = 'speed') {
+  constructor(x, y, type) {
     this.x      = x;
     this.y      = y;
     const types = ['speed', 'triple', 'shield'];
@@ -627,8 +627,7 @@ function update(dt) {
         explode(a.x, a.y, a.size * 5);
         newAsteroids.push(...a.split());
         if (Math.random() < POWERUP_CHANCE) {
-          const type = Math.random() < 0.5 ? 'speed' : 'triple';
-          powerups.push(new PowerUp(a.x, a.y, type));
+          powerups.push(new PowerUp(a.x, a.y));
         }
       }
     }

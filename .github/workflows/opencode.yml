@@ -48,4 +48,4 @@ jobs:
           # PARCHE 2: Pasar explícitamente el token nativo para que el bot pueda comentar
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          model: opencode/glm-5.2
+          model: opencode-go/glm-5.2

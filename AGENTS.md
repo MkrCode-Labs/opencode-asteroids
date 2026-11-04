@@ -10,7 +10,7 @@ Clon de Asteroids en HTML5 Canvas + JavaScript vanilla. Sin dependencias, bundle
 ## Arquitectura
 - `game.js` contiene todo el juego; `index.html` solo define el canvas 800x600, estilos y carga el script.
 - El tamaño del canvas está duplicado: atributos `width`/`height` del HTML y constantes `W`/`H` de `game.js`. Mantenerlos sincronizados.
-- Clases: `Ship`, `Asteroid`, `Bullet`, `Particle`, `PowerUp`. Estado global: `ship`, `bullets`, `asteroids`, `particles`, `powerups`, `score`, `lives`, `level`, `state`.
+- Clases: `Ship`, `Asteroid`, `Bullet`, `Particle`, `PowerUp`, `ShootingStar`. Estado global: `ship`, `bullets`, `asteroids`, `particles`, `powerups`, `stars`, `score`, `lives`, `level`, `state`.
 - `state` es `'playing' | 'dead' | 'gameover'` y se gestiona en `update(dt)`.
 - Loop con `requestAnimationFrame`; `dt` va en segundos y se limita a 0.05 s. Toda la física usa segundos.
 
@@ -19,4 +19,5 @@ Clon de Asteroids en HTML5 Canvas + JavaScript vanilla. Sin dependencias, bundle
 - `wrap()` aplica el espacio toroidal a nave, asteroides y balas; las partículas no hacen wrap.
 - `Asteroid.size` va de 1 a 3 e indexa `RADII`, `SPEEDS` y `POINTS` (1 = pequeño, 3 = grande). Al destruirse suma `POINTS[size]` y `split()` genera dos del tamaño inferior.
 - `PowerUp` tiene 10 % de drop por asteroide destruido y otorga `SPEED_DURATION` (5 s) de empuje x2; recoger otro reinicia el timer.
+- `ShootingStar` aparece cada 10–14 s solo en `playing` (máx. 2), no hace wrap, se apaga con `STAR_TTL` y vale `STAR_POINTS` (150). No se parte ni suelta power-ups; chocar con ella destruye la nave.
 - Los nombres van en inglés; los comentarios, en español.

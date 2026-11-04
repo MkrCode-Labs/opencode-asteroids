@@ -10,13 +10,13 @@ Clon de Asteroids en HTML5 Canvas + JavaScript vanilla. Sin dependencias, bundle
 ## Arquitectura
 - `game.js` contiene todo el juego; `index.html` solo define el canvas 800x600, estilos y carga el script.
 - El tamaño del canvas está duplicado: atributos `width`/`height` del HTML y constantes `W`/`H` de `game.js`. Mantenerlos sincronizados.
-- Clases: `Ship`, `Asteroid`, `Bullet`, `Particle`. Estado global: `ship`, `bullets`, `asteroids`, `particles`, `score`, `lives`, `level`, `state`.
+- Clases: `Ship`, `Asteroid`, `Bullet`, `Particle`, `PowerUp`. Estado global: `ship`, `bullets`, `asteroids`, `particles`, `powerups`, `score`, `lives`, `level`, `state`.
 - `state` es `'playing' | 'dead' | 'gameover'` y se gestiona en `update(dt)`.
 - Loop con `requestAnimationFrame`; `dt` va en segundos y se limita a 0.05 s. Toda la física usa segundos.
 
 ## Trampas y convenciones
-- Input: `keys` para estado continuo; `pressed(code)` consume `justPressed` (one-shot). `Space` dispara y también reinicia en gameover; no llamar `pressed('Space')` dos veces por frame.
+- Input: `keys` para estado continuo; `held(KEY_*)` mapea flechas + WASD (W/A/D mueven, S frena). `Space` dispara mientras se mantiene (cooldown 0.2 s) y `pressed('Space')` solo reinicia en gameover; `pressed()` consume `justPressed` (one-shot), no llamarlo dos veces por frame.
 - `wrap()` aplica el espacio toroidal a nave, asteroides y balas; las partículas no hacen wrap.
 - `Asteroid.size` va de 1 a 3 e indexa `RADII`, `SPEEDS` y `POINTS` (1 = pequeño, 3 = grande). Al destruirse suma `POINTS[size]` y `split()` genera dos del tamaño inferior.
+- `PowerUp` tiene 10 % de drop por asteroide destruido y otorga `SPEED_DURATION` (5 s) de empuje x2; recoger otro reinicia el timer.
 - Los nombres van en inglés; los comentarios, en español.
-- El README menciona power-ups y una "estrella fugaz" que no existen en `game.js`. El código es la fuente de verdad.

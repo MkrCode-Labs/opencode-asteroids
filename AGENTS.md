@@ -18,6 +18,6 @@ Clon de Asteroids en HTML5 Canvas + JavaScript vanilla. Sin dependencias, bundle
 - Input: `keys` para estado continuo; `held(KEY_*)` mapea flechas + WASD (W/A/D mueven, S frena). `Space` dispara mientras se mantiene (cooldown 0.2 s) y `pressed('Space')` solo reinicia en gameover; `pressed()` consume `justPressed` (one-shot), no llamarlo dos veces por frame.
 - `wrap()` aplica el espacio toroidal a nave, asteroides y balas; las partículas no hacen wrap.
 - `Asteroid.size` va de 1 a 3 e indexa `RADII`, `SPEEDS` y `POINTS` (1 = pequeño, 3 = grande). Al destruirse suma `POINTS[size]` y `split()` genera dos del tamaño inferior.
-- `PowerUp` tiene 10 % de drop por asteroide destruido y otorga `SPEED_DURATION` (5 s) de empuje x2; recoger otro reinicia el timer.
+- `PowerUp` tiene 10 % de drop por asteroide destruido; el tipo se sortea 50/50: `'speed'` otorga `SPEED_DURATION` (5 s) de empuje x2 (chevrons cian) y `'triple'` otorga `TRIPLE_DURATION` (5 s) disparando un abanico de 3 balas con apertura `TRIPLE_SPREAD` (tres puntos naranjas). Recoger otro del mismo tipo reinicia su timer; las dos habilidades coexisten.
 - `ShootingStar` aparece cada 10–14 s solo en `playing` (máx. 2), no hace wrap, se apaga con `STAR_TTL` y vale `STAR_POINTS` (150). No se parte ni suelta power-ups; chocar con ella destruye la nave.
 - Los nombres van en inglés; los comentarios, en español.

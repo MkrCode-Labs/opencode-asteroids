@@ -9,24 +9,19 @@ on:
 jobs:
   opencode:
     if: |
-      contains(github.event.comment.body, '/oc') || 
+      contains(github.event.comment.body, '/oc') ||
       contains(github.event.comment.body, '/opencode')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      contents: write
-      issues: write
-      pull-requests: write
+      contents: read
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
           persist-credentials: false
-
-      # PARCHE 1: Forzar la creación de las carpetas que OpenCode intenta usar
-      - name: Fix OpenCode Directories
-        run: mkdir -p /home/runner/.local/share/opencode/snapshot /home/runner/.local/share/opencode/info
 
       - name: Sign in to OpenCode
         env:
@@ -37,15 +32,16 @@ jobs:
           token=$(curl -sSf https://opencode.ai/console/auth/oauth/token \
             -d grant_type=urn:ietf:params:oauth:grant-type:token-exchange \
             -d subject_token_type=urn:ietf:params:oauth:token-type:jwt \
-            -d client_id=sk_8f1fdbb7-4fed-468d-b6ca-955c2e562d0d \
+            -d client_id=sk_9bfee2c7-975e-4787-b480-16a37f72d71c \
             -d subject_token="$oidc" | jq -r .access_token)
           echo "::add-mask::$token"
           echo "OPENCODE_API_KEY=$token" >> "$GITHUB_ENV"
 
-      - name: Run OpenCode
+      - name: Run OpenCode V2
         uses: anomalyco/opencode/github@latest
         env:
-          # PARCHE 2: Pasar explícitamente el token nativo para que el bot pueda comentar
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENCODE_API_KEY: ${{ env.OPENCODE_API_KEY }}
         with:
-          model: opencode-go/glm-5.2
+          # Modelos disponibles en tu suscripción OpenCode Go:
+          # opencode-go/kimi-k3, opencode-go/deepseek-v4.1-flash, opencode-go/qwen3.8-max, opencode-go/glm-5.3
+          model: opencode-go/kimi-k3

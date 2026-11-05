@@ -1,0 +1,69 @@
+name: Issue Formatter
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  format-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Format issue body and assign labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const originalBody = issue.body || '';
+
+            // Normalizar Markdown: trailing whitespace y líneas vacías múltiples
+            const normalizedBody = originalBody
+              .split('\n')
+              .map(line => line.trimEnd())
+              .join('\n')
+              .replace(/\n{3,}/g, '\n\n')
+              .trim();
+
+            // Labels fijos + dinámicos según contenido
+            const labels = new Set(['triage', 'needs-review']);
+            const combined = `${issue.title} ${normalizedBody}`.toLowerCase();
+
+            if (/\b(bug|error|crash|broken|no funciona|fallo|falla|defecto)\b/i.test(combined)) {
+              labels.add('bug');
+            }
+            if (/\b(feature|enhancement|mejora|sugerencia|agregar|añadir|propuesta|nueva funcionalidad)\b/i.test(combined)) {
+              labels.add('enhancement');
+            }
+            if (/\b(question|pregunta|ayuda|cómo|como|duda|help|how to)\b/i.test(combined) || issue.title.includes('?')) {
+              labels.add('question');
+            }
+
+            // Metadata para triage
+            const metadata = `
+
+---
+
+### 📋 Metadata
+| Campo | Valor |
+|-------|-------|
+| **Autor** | @${issue.user.login} |
+| **Creado** | ${issue.created_at} |
+| **URL** | ${issue.html_url} |
+| **Commit** | ${context.sha} |
+| **Repo** | ${context.repo.owner}/${context.repo.repo} |
+`;
+
+            const newBody = `${normalizedBody}${metadata}`;
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: newBody,
+              labels: Array.from(labels)
+            });
+
+            console.log(`✅ Issue #${issue.number} formateado con labels: ${Array.from(labels).join(', ')}`);

@@ -3,6 +3,9 @@
 ## Proyecto
 Clon de Asteroids en HTML5 Canvas + JavaScript vanilla. Sin dependencias, bundler, tests, linter ni CI. No agregar tooling de build salvo que se pida.
 
+## GitHub Actions
+- **Issue Formatter** (`.github/workflows/issue-formatter.yml`): Se ejecuta automáticamente cuando se abre un issue nuevo. Normaliza el Markdown del body, asigna labels fijos (`triage`, `needs-review`) + dinámicos (`bug`, `enhancement`, `question`) según el contenido, y agrega metadata (autor, fecha, commit, repo) al final del issue. Usa `actions/github-script` (sin secrets/tokens explícitos en el YAML; los permisos se controlan con la clave `permissions`).
+
 ## Ejecutar
 - Abrir `index.html` en el navegador o `npx serve .` (la partida inicia sola).
 - No hay comandos de test/lint; la verificación es manual en el navegador.

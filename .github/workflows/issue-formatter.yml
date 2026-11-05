@@ -11,18 +11,86 @@ on:
         type: number
 
 permissions:
-  issues: write
+  id-token: write
   contents: read
+  issues: write
+
+concurrency:
+  group: formatter-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: false
 
 jobs:
-  format-issue:
+  enhance-issue:
     runs-on: ubuntu-latest
     steps:
-      - name: Format issue body and assign labels
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Sign in to OpenCode
+        env:
+          AUDIENCE: https://opencode.ai/console
+        run: |
+          oidc=$(curl -sSf --oauth2-bearer "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE" | jq -r .value)
+          token=$(curl -sSf https://opencode.ai/console/auth/oauth/token \
+            -d grant_type=urn:ietf:params:oauth:grant-type:token-exchange \
+            -d subject_token_type=urn:ietf:params:oauth:token-type:jwt \
+            -d client_id=sk_9bfee2c7-975e-4787-b480-16a37f72d71c \
+            -d subject_token="$oidc" | jq -r .access_token)
+          echo "::add-mask::$token"
+          echo "OPENCODE_API_KEY=$token" >> "$GITHUB_ENV"
+
+      - name: Enrich issue with OpenCode
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_API_KEY: ${{ env.OPENCODE_API_KEY }}
+        with:
+          model: opencode-go/kimi-k3
+          prompt: |
+            Triage issue #${{ github.event.issue.number || inputs.issue_number }}.
+
+            1. Read the issue title and current body.
+            2. Update the issue body keeping this exact structure:
+               - First: the author's original text VERBATIM. Never rewrite, translate or reformat it.
+               - Then: a '## Descripción detallada' section, written in the same language as the original issue, explaining in detail what the user is asking:
+                 * Objective
+                 * Proposed changes, grounded in this repository (HTML5 Canvas + vanilla JS Asteroids clone; game.js holds the game logic and W/H constants, index.html the 800x600 canvas — mention only what actually applies)
+                 * Acceptance criteria
+               - Last: a metadata block at the end, exactly this format:
+
+                 ---
+
+                 ### 📋 Metadata
+                 | Campo | Valor |
+                 |-------|-------|
+                 | **Autor** | @<issue author> |
+                 | **Creado** | <issue created_at> |
+                 | **URL** | <issue html_url> |
+                 | **Commit** | <current HEAD sha> |
+                 | **Repo** | ${{ github.repository }} |
+
+            3. Assign labels to the issue:
+               - Always: triage, needs-review
+               - bug: if the issue describes a defect or malfunction
+               - enhancement: if it requests a new feature or improvement
+               - question: if it asks a question
+
+            Idempotency: if a '## Descripción detallada' section already exists, replace it instead of duplicating it. Keep an existing Metadata table intact.
+
+            Do not change the issue title and do not add comments to the issue. Use the GitHub integration available in this environment to update the body and the labels.
+
+  fallback:
+    needs: enhance-issue
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fallback labels and metadata
         uses: actions/github-script@v7
         with:
           script: |
-            // Issue del evento, o fetch si se ejecuta manualmente (workflow_dispatch)
             let issue = context.payload.issue;
             if (!issue) {
               const number = parseInt(context.payload.inputs.issue_number, 10);
@@ -35,47 +103,29 @@ jobs:
             }
 
             const originalBody = issue.body || '';
-
-            // Normalizar Markdown: trailing whitespace y líneas vacías múltiples
-            const normalizedBody = originalBody
-              .split('\n')
-              .map(line => line.trimEnd())
-              .join('\n')
-              .replace(/\n{3,}/g, '\n\n')
-              .trim();
-
-            // Labels fijos + dinámicos según contenido
             const labels = new Set(['triage', 'needs-review']);
-            const combined = `${issue.title} ${normalizedBody}`.toLowerCase();
+            issue.labels.forEach(label => labels.add(label.name));
 
-            if (/\b(bug|error|crash|broken|no funciona|fallo|falla|defecto)\b/i.test(combined)) {
-              labels.add('bug');
+            // Solo agregar metadata si no existe, preservando el body original
+            let newBody = originalBody;
+            if (!originalBody.includes('### 📋 Metadata')) {
+              const metadata = [
+                '',
+                '',
+                '---',
+                '',
+                '### 📋 Metadata',
+                '| Campo | Valor |',
+                '|-------|-------|',
+                `| **Autor** | @${issue.user.login} |`,
+                `| **Creado** | ${issue.created_at} |`,
+                `| **URL** | ${issue.html_url} |`,
+                `| **Commit** | ${context.sha} |`,
+                `| **Repo** | ${context.repo.owner}/${context.repo.repo} |`,
+                ''
+              ].join('\n');
+              newBody = `${originalBody}${metadata}`;
             }
-            if (/\b(feature|enhancement|mejora|sugerencia|agregar|añadir|propuesta|nueva funcionalidad)\b/i.test(combined)) {
-              labels.add('enhancement');
-            }
-            if (/\b(question|pregunta|ayuda|cómo|como|duda|help|how to)\b/i.test(combined) || issue.title.includes('?')) {
-              labels.add('question');
-            }
-
-            // Metadata para triage (array join: la indentación YAML no ensucia el Markdown)
-            const metadata = [
-              '',
-              '',
-              '---',
-              '',
-              '### 📋 Metadata',
-              '| Campo | Valor |',
-              '|-------|-------|',
-              `| **Autor** | @${issue.user.login} |`,
-              `| **Creado** | ${issue.created_at} |`,
-              `| **URL** | ${issue.html_url} |`,
-              `| **Commit** | ${context.sha} |`,
-              `| **Repo** | ${context.repo.owner}/${context.repo.repo} |`,
-              ''
-            ].join('\n');
-
-            const newBody = `${normalizedBody}${metadata}`;
 
             await github.rest.issues.update({
               owner: context.repo.owner,
@@ -85,4 +135,4 @@ jobs:
               labels: Array.from(labels)
             });
 
-            console.log(`✅ Issue #${issue.number} formateado con labels: ${Array.from(labels).join(', ')}`);
+            console.log(`✅ Fallback aplicado al issue #${issue.number}`);

@@ -4,7 +4,7 @@
 Clon de Asteroids en HTML5 Canvas + JavaScript vanilla. Sin dependencias, bundler, tests, linter ni CI. No agregar tooling de build salvo que se pida.
 
 ## GitHub Actions
-- **Issue Formatter** (`.github/workflows/issue-formatter.yml`): Se ejecuta automáticamente cuando se abre un issue nuevo, o manualmente con `workflow_dispatch` pasando `issue_number`. Normaliza el Markdown del body, asigna labels fijos (`triage`, `needs-review`) + dinámicos (`bug`, `enhancement`, `question`) según el contenido, y agrega metadata (autor, fecha, commit, repo) al final del issue. Usa `actions/github-script` (sin secrets/tokens explícitos en el YAML; los permisos se controlan con la clave `permissions`).
+- **Issue Formatter** (`.github/workflows/issue-formatter.yml`): Se ejecuta automáticamente cuando se abre un issue nuevo, o manualmente con `workflow_dispatch` pasando `issue_number`. **OpenCode** (`anomalyco/opencode/github@latest`, autenticación OIDC como en `opencode.yml`) enriquece el issue: conserva el texto original del autor verbatim, agrega una sección "Descripción detallada" (objetivo, cambios propuestos, criterios de aceptación), la tabla de metadata al final, y asigna labels (`triage`, `needs-review` + `bug`/`enhancement`/`question` según contenido). Si el paso de OpenCode falla, un job de fallback (`github-script`) aplica solo labels y metadata.
 
 ## Ejecutar
 - Abrir `index.html` en el navegador o `npx serve .` (la partida inicia sola).

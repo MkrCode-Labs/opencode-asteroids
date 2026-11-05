@@ -3,6 +3,12 @@ name: Issue Formatter
 on:
   issues:
     types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Número del issue a formatear'
+        required: true
+        type: number
 
 permissions:
   issues: write
@@ -16,7 +22,18 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const issue = context.payload.issue;
+            // Issue del evento, o fetch si se ejecuta manualmente (workflow_dispatch)
+            let issue = context.payload.issue;
+            if (!issue) {
+              const number = parseInt(context.payload.inputs.issue_number, 10);
+              const { data } = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: number
+              });
+              issue = data;
+            }
+
             const originalBody = issue.body || '';
 
             // Normalizar Markdown: trailing whitespace y líneas vacías múltiples

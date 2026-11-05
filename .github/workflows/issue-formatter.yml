@@ -58,20 +58,22 @@ jobs:
               labels.add('question');
             }
 
-            // Metadata para triage
-            const metadata = `
-
----
-
-### 📋 Metadata
-| Campo | Valor |
-|-------|-------|
-| **Autor** | @${issue.user.login} |
-| **Creado** | ${issue.created_at} |
-| **URL** | ${issue.html_url} |
-| **Commit** | ${context.sha} |
-| **Repo** | ${context.repo.owner}/${context.repo.repo} |
-`;
+            // Metadata para triage (array join: la indentación YAML no ensucia el Markdown)
+            const metadata = [
+              '',
+              '',
+              '---',
+              '',
+              '### 📋 Metadata',
+              '| Campo | Valor |',
+              '|-------|-------|',
+              `| **Autor** | @${issue.user.login} |`,
+              `| **Creado** | ${issue.created_at} |`,
+              `| **URL** | ${issue.html_url} |`,
+              `| **Commit** | ${context.sha} |`,
+              `| **Repo** | ${context.repo.owner}/${context.repo.repo} |`,
+              ''
+            ].join('\n');
 
             const newBody = `${normalizedBody}${metadata}`;
 
